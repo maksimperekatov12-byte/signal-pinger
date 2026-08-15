@@ -1,0 +1,33 @@
+# Круглосуточное обновление «Сигнала».
+#
+# Планировщик Vercel на тарифе Hobby ходит раз в сутки, а уведомления должны
+# приходить в течение дня. Этот рабочий процесс каждые 10 минут дёргает
+# /api/refresh: сервис идёт в реестры госзакупок и рассылает подписчикам то,
+# что появилось. Кода продукта здесь нет — только расписание.
+name: ping
+
+on:
+  schedule:
+    # Раз в 10 минут. GitHub иногда запускает с задержкой в несколько минут —
+    # для ленты закупок это незаметно.
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Обновить ленту и разослать уведомления
+        env:
+          PING_URL: ${{ secrets.PING_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          code=$(curl -sS -m 120 -o response.json -w '%{http_code}' \
+            -H "Authorization: Bearer $CRON_SECRET" "$PING_URL")
+          echo "HTTP $code"
+          # Ответ печатаем целиком: по нему видно, сколько событий пришло
+          # и сколько уведомлений ушло подписчикам.
+          cat response.json | head -c 2000
+          echo
+          test "$code" = "200"

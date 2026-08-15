@@ -1,0 +1,26 @@
+# GitHub отключает расписания в репозитории, где 60 дней нет коммитов.
+# Этот процесс раз в неделю обновляет отметку времени — так пингер не умрёт
+# сам по себе через два месяца.
+name: heartbeat
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  touch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Обновить отметку
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > last-heartbeat.txt
+          git config user.name "signal-pinger"
+          git config user.email "actions@github.com"
+          git add last-heartbeat.txt
+          git diff --staged --quiet || git commit -m "heartbeat"
+          git push
